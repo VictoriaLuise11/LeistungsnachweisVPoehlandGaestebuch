@@ -30,6 +30,13 @@ import androidx.navigation.NavHostController
 import com.example.aufgabe3.viewmodel.SharedViewModel
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import com.example.aufgabe3.model.BookingEntry
+import java.time.Instant
+import java.time.ZoneId
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DateRangePicker
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDateRangePickerState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,6 +49,9 @@ fun AddScreen(
     var departureDate by remember { mutableStateOf<LocalDate?>(null) }
 
     var showDateRangePicker by remember { mutableStateOf(false) }
+
+    // var errorMessage by remember { mutableStateOf<String?>(null) } eigene
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     val dateFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
 
@@ -97,9 +107,31 @@ fun AddScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
+            // Fehlermeldung anzeigen
+            if (errorMessage != null) {
+                Text(
+                    text = errorMessage!!,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+            }
+
             Button(
                 onClick = {
-                    // TODO Error handling and creating new BookingEntry and save in sharedViewModel
+
+                    if (name.isBlank() || arrivalDate == null || departureDate == null) {
+                        errorMessage = "Please fill in all fields and select a valid date range."
+                    } else {
+                        sharedViewModel.addBookingEntry(
+                            BookingEntry(
+                                name = name,
+                                arrivalDate = arrivalDate!!,
+                                departureDate = departureDate!!
+                            )
+                        )
+                        navController.popBackStack()
+                    }
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -108,11 +140,81 @@ fun AddScreen(
         }
     }
 
-    // TODO implement DateRangePicker Dialog logic
+
+    // DateRangePickerModal
+    if (showDateRangePicker) {
+        DateRangePickerModal(
+            onDateRangeSelected = { range ->
+                val (startMillis, endMillis) = range
+                if (startMillis != null && endMillis != null) {
+                    arrivalDate = Instant.ofEpochMilli(startMillis)
+                        .atZone(ZoneId.systemDefault())
+                        .toLocalDate()
+                    departureDate = Instant.ofEpochMilli(endMillis)
+                        .atZone(ZoneId.systemDefault())
+                        .toLocalDate()
+                }
+                showDateRangePicker = false
+            },
+            onDismiss = {
+                showDateRangePicker = false
+            }
+        )
+    }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DateRangePickerModal(
+    onDateRangeSelected: (Pair<Long?, Long?>) -> Unit,
+    onDismiss: () -> Unit
 ) {
-    // TODO implement DateRangePicker see https://developer.android.com/develop/ui/compose/components/datepickers?hl=de
+    val dateRangePickerState = rememberDateRangePickerState()
+    val todayInMillis = LocalDate.now()
+        .atStartOfDay(ZoneId.systemDefault())
+        .toInstant()
+        .toEpochMilli()
+
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val startMillis = dateRangePickerState.selectedStartDateMillis
+                    val endMillis = dateRangePickerState.selectedEndDateMillis
+
+                    // Prüfung auf vergangene Daten
+                    if (startMillis != null && endMillis != null &&
+                        startMillis >= todayInMillis && endMillis >= todayInMillis
+                    ) {
+                        onDateRangeSelected(Pair(startMillis, endMillis))
+                        onDismiss() // Dialog schließen bei gültigen Daten
+                    } else {
+
+                    }
+                }
+            ) {
+                Text("OK")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    ) {
+        DateRangePicker(
+            state = dateRangePickerState,
+            title = {
+                Text(
+                    text = "Select date range"
+                )
+            },
+            showModeToggle = false,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(500.dp)
+                .padding(16.dp)
+        )
+    }
 }

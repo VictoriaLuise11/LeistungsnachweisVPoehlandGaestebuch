@@ -4,16 +4,23 @@ import androidx.lifecycle.ViewModel
 import com.example.aufgabe3.model.BookingEntry
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
 
 class SharedViewModel: ViewModel() {
     private val _bookingsEntries = MutableStateFlow<List<BookingEntry>>(emptyList())
     val bookingsEntries: StateFlow<List<BookingEntry>> = _bookingsEntries
 
-    fun addBookingEntry(){
-        // TODO create a new booking entry and save it
+    fun addBookingEntry(newEntry: BookingEntry){
+
+        _bookingsEntries.update { currentList ->
+            currentList + newEntry
+        }
     }
 
-    fun deleteBookingEntry(){
-        // TODO delete a new booking entry
+    fun deleteBookingEntry(entry: BookingEntry){
+
+        _bookingsEntries.update { currentList ->
+            currentList.filter { it != entry }
+        }
     }
 }
